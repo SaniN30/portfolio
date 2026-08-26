@@ -188,7 +188,14 @@ body.is-dark{ background:#08080a; --ink-2:#8e8c96; }
   /* 42vw of a 390px screen is a 164px mark — too small to be the first thing
      anyone sees. Portrait gets the width it can afford; landscape is still
      governed by height. */
-  .mark__v{ width:min(58vw,44vh); }
+  .mark__v{
+    width:min(58vw,44vh);
+    /* iOS composites a hardware-decoded video on its own layer, which a blend
+       mode cannot always reach — the clip goes blank or unblended. The paper is
+       exactly #ffffff and so is the clip's own ground, so on touch the multiply
+       buys nothing and costs a whole class of compositing bugs. */
+    mix-blend-mode:normal;
+  }
   /* the canvas is dragged, so nothing on it may be selected or long-pressed */
   .work__cv{ -webkit-touch-callout:none; }
   /* the hint has to clear the home indicator and read at arm's length */

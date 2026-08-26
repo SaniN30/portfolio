@@ -79,6 +79,8 @@ function armGlobalGesture(){
   if (audioArmed) return;
   audioArmed = true;
   const go = async () => {
+    // the same gesture that lights the track can start a refused mark
+    if (!markWrap.hidden && markVideo.paused) markVideo.play().catch(() => {});
     const ok = await goAudible();
     if (ok){
       window.removeEventListener('pointerdown', go);
@@ -126,15 +128,21 @@ window.addEventListener('popstate', applyRoute);
    Built and running well before it is seen: the digicam's monitor is
    textured with this very canvas, so what plays on the screen is the page
    itself rather than a preview of it, and the hand-off is not a cut. */
-let work = null, workShown = false;
+let work = null, workShown = false, workHeld = false;
 
+/* `workHeld` is the lite path's compromise. Downloading the films costs
+   bandwidth; PLAYING them costs a hardware decoder, and on a phone the mark is
+   already using one. So the canvas is built while the mark is still on screen —
+   the eight sources start arriving — but it is not started, and nothing calls
+   play() until the mark is gone. Held, it is a shopping list; started, it is a
+   competitor. */
 function ensureWork(){
   if (work) return work;
   work = new WorkCanvas($('cv'), {
     onRoute: (r) => { location.hash = '#/' + r; },
     onFirstDrag: () => { hint.classList.add('is-gone'); }
   });
-  work.start();
+  if (!workHeld) work.start();
   /* A phone fires resize for every step of the URL bar sliding away, and each
      one reallocates four canvases. Coalesce to one per frame. */
   let pending = 0;
@@ -150,6 +158,8 @@ function ensureWork(){
 
 function showWork(){
   ensureWork();
+  workHeld = false;
+  work.start();                      // idempotent; releases a held canvas
   if (workShown) return;
   workShown = true;
   workWrap.hidden = false;
@@ -200,10 +210,6 @@ async function main(){
     ]);
   } catch (e) { /* fall back to the stack in the font-family list */ }
 
-  // the plane is warmed while the mark is still playing, so the hand-off is
-  // never a cold start with eight videos at readyState 0
-  if (LITE) setTimeout(ensureWork, 1200);
-
   if (!LITE){
     S = await import('./scene.js');
     gl = new S.GL(glCanvas);
@@ -216,13 +222,36 @@ async function main(){
     ipodModel.catch(() => {}); camModel.catch(() => {});
   }
 
-  // ── the mark
-  markVideo.play().catch(() => {});
+  /* ── the mark ─────────────────────────────────────────────────────────
+     Three ways this fails on a phone and none of them are visible on a desk:
+     autoplay refused outright (Low Power Mode does this, so does turning off
+     Auto-Play Video Previews), the decoder busy with something else, or the
+     clip simply never getting a frame out in time. The poster covers the look
+     of all three — the mark is fully drawn in frame 0 — and the clock below
+     covers the wait, so nobody stares at a still logo for five and a half
+     seconds because their battery is low. */
+  // On the lite path the films start ARRIVING under the mark but must not
+  // start PLAYING under it — see workHeld.
+  if (LITE){ workHeld = true; setTimeout(ensureWork, 2600); }
+
+  const rollMark = () => markVideo.play().catch(() => {});
+  rollMark();
   const markDone = new Promise(res => {
     let fired = false;
     const go = () => { if (!fired){ fired = true; res(); } };
     markVideo.addEventListener('ended', go, { once:true });
-    setTimeout(go, reduced ? 900 : 5600);            // never hang on a stalled decode
+    const full = setTimeout(go, reduced ? 900 : 5600);   // never hang on a stall
+    // did it actually start? currentTime is the only honest answer — readyState
+    // and the play() promise both lie when the decoder is merely busy.
+    setTimeout(() => {
+      if (markVideo.currentTime > 0.08) return;          // rolling, leave it be
+      rollMark();                                        // one more try
+      setTimeout(() => {
+        if (markVideo.currentTime > 0.08) return;
+        clearTimeout(full);
+        go();                                            // hold the still, move on
+      }, 700);
+    }, reduced ? 200 : 1400);
   });
   await markDone;
   if (skipped) return;

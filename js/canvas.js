@@ -276,19 +276,29 @@ export class WorkCanvas {
     const chase = Math.hypot(this.px - this.mx, this.py - this.my);
     this.spread += (clamp(1 + chase / 260, 1, 2.1) - this.spread) * 0.12;
 
-    this.drawPlane();
+    this.drawPlane(dt);
     this.drawGrid();
-    this.drawTrackers(dt);
+    // on touch the trackers were already laid down UNDER the films, inside
+    // drawPlane — see there
+    if (!this.coarse) this.drawTrackers(dt);
     this.softenEdges();
   }
 
   /* ── pass 1 ───────────────────────────────────────────────────────── */
-  drawPlane(){
+  drawPlane(dt){
     const c = this.bctx, dpr = this.dpr;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.clearRect(0, 0, this.w, this.h);
     c.fillStyle = '#ffffff';
     c.fillRect(0, 0, this.w, this.h);
+
+    /* On touch the overlay goes down FIRST, on the paper, and the films are
+       painted over it — so the blobs and the bracket read as something the
+       viewfinder is drawing behind the work rather than scribbling across it.
+       Akif's call. On a mouse they stay on top, where they have always been.
+       The rects are the previous frame's; the bracket is lerped anyway, and a
+       frame of lag is invisible on something that drifts this slowly. */
+    if (this.coarse) this.drawTrackers(dt, c);
 
     const need = new Array(this.videos.length).fill(false);
     const near = new Array(this.videos.length).fill(Infinity);
@@ -330,10 +340,20 @@ export class WorkCanvas {
        the console says why. So on touch only the few films nearest the centre
        are asked to run; the rest hold the last frame they painted, which is
        what a paused <video> draws anyway. */
-    if (MAX_DECODE < this.videos.length){
-      const live = new Set(
-        need.map((n, i) => (n ? i : -1)).filter(i => i >= 0)
-            .sort((a, b) => near[a] - near[b]).slice(0, MAX_DECODE));
+    const onScreen = need.map((n, i) => (n ? i : -1)).filter(i => i >= 0);
+    this._onScreen = onScreen;          // read by the verification harness
+    if (MAX_DECODE < this.videos.length && onScreen.length > MAX_DECODE){
+      const live = new Set(onScreen.slice().sort((a, b) => near[a] - near[b])
+                                   .slice(0, MAX_DECODE));
+      /* A capped tile holds the last frame it painted — but a tile that has
+         NEVER played has no such frame, and draws as the grey placeholder for
+         as long as it stays capped. (preload="auto" is a hint; iOS routinely
+         downgrades it to metadata, so the frame does not arrive on its own.)
+         So one un-primed tile at a time is allowed past the cap until it has a
+         frame, then it is paused again with that frame on screen. */
+      const prime = onScreen.filter(i => this.videos[i].readyState < 2)
+                            .sort((a, b) => near[a] - near[b])[0];
+      if (prime !== undefined) live.add(prime);
       for (let n = 0; n < need.length; n++) if (need[n] && !live.has(n)) need[n] = false;
     }
 
@@ -514,8 +534,8 @@ export class WorkCanvas {
     ctx.drawImage(this.blurCv, 0, 0, this.cv.width, this.cv.height);
   }
 
-  drawTrackers(dt){
-    const ctx = this.ctx;
+  drawTrackers(dt, target){
+    const ctx = target || this.ctx;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.save();
     this.clipType(ctx);
