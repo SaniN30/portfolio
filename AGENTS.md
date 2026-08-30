@@ -12,6 +12,18 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   in canvas.js). There is no structural place for resume sections (experience, education, skills,
   certifications) without adding new UI - fold that kind of content into the about page's prose
   instead of inventing new sections.
+- The WORKS tile canvas (js/canvas.js `paintWork`) only ever draws `<video>` elements - there is no
+  image-tile code path. To put a photo in a tile slot, convert it to a short looping mp4 (e.g. an
+  ffmpeg zoompan "Ken Burns" clip) rather than adding image support to canvas.js. Each tile needs a
+  matching pair: a full-res file in assets/tiles/ and a smaller one in assets/tiles-sm/ (used on
+  coarse/touch pointers, see canvas.js `COARSE`), same filename in both.
+- assets/video/mark.mp4 (the intro "n*" mark) is a baked video, not canvas/DOM text - the glyph is
+  a single static raster shape for the whole clip and only the asterisk animates around it (see the
+  comment above `#mark` in index.html). To re-letter it: extract all frames, build a mask of
+  pixels dark in nearly all frames (that isolates the static glyph from the moving asterisk),
+  erase that mask, and darken-composite a freshly rendered letter image back in at the same
+  position/size - this preserves the asterisk animation exactly since it's untouched pixels.
+  Re-render assets/video/mark-still.webp (frame 0) from the same result; it's the poster image.
 
 ## Maintaining this file
 
