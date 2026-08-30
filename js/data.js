@@ -1,14 +1,14 @@
 // The work. Order is the order they tile across the canvas.
 // `label` is optional — leave it empty and the tile shows the film alone.
 export const WORKS = [
-  { src: './assets/tiles/scape-final.mp4',       label: '' },
-  { src: './assets/tiles/bubu-bar-directed.mp4', label: '' },
-  { src: './assets/tiles/hyde-park.mp4',         label: '' },
-  { src: './assets/tiles/video-2.mp4',           label: '' },
-  { src: './assets/tiles/bubu-promo.mp4',        label: '' },
-  { src: './assets/tiles/nomad-mograph.mp4',     label: '' },
-  { src: './assets/tiles/scape-loop.mp4',        label: '' },
-  { src: './assets/tiles/bububar.mp4',           label: '' }
+  { src: './assets/tiles/personal-video.mp4', label: '' },
+  { src: './assets/tiles/photo-1.mp4',        label: '' },
+  { src: './assets/tiles/photo-2.mp4',        label: '' },
+  { src: './assets/tiles/photo-3.mp4',        label: '' },
+  { src: './assets/tiles/photo-4.mp4',        label: '' },
+  { src: './assets/tiles/photo-5.mp4',        label: '' },
+  { src: './assets/tiles/photo-6.mp4',        label: '' },
+  { src: './assets/tiles/photo-7.mp4',        label: '' }
 ];
 
 // Text cards live in the same grid as the films and are clickable.
